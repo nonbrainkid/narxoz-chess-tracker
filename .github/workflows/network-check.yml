@@ -1,0 +1,18 @@
+name: Sport Hub public connectivity diagnostic
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  network:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04-arm, ubuntu-slim]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - run: python3 network_diagnostic.py
