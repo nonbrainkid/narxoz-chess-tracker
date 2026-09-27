@@ -177,6 +177,14 @@ class AvailabilityTests(unittest.TestCase):
 
 
 class NotificationTests(unittest.TestCase):
+    def test_compressed_api_response(self):
+        import gzip
+        import io
+        response = io.BytesIO(gzip.compress(b'{"ok":true}'))
+        response.headers = {"Content-Encoding": "gzip"}
+        with patch("urllib.request.urlopen", return_value=response):
+            self.assertEqual(t.request_json("https://example.test"), {"ok": True})
+
     def test_partial_batch_failure_retries_only_undelivered_sessions(self):
         snap = snapshot(*[session(str(i), day="2026-09-28", start="14:00", end="15:40") for i in range(10)])
         state, store = t.empty_state(), Store()

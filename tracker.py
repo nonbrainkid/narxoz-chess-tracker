@@ -5,6 +5,7 @@ import argparse
 import base64
 from collections import Counter
 from datetime import date, datetime, timedelta, timezone
+import gzip
 import hashlib
 import html
 import json
@@ -27,7 +28,7 @@ class MonitorError(Exception):
 
 def request_json(url, *, payload=None, headers=None, service="API", attempts=3):
     encoded = None if payload is None else json.dumps(payload).encode("utf-8")
-    request_headers = {"Accept": "application/json", "User-Agent": "NarxozChessMonitor/1.0"}
+    request_headers = {"Accept": "application/json", "Accept-Encoding": "gzip", "User-Agent": "NarxozChessMonitor/1.0"}
     if encoded is not None:
         request_headers["Content-Type"] = "application/json"
     request_headers.update(headers or {})
@@ -35,7 +36,10 @@ def request_json(url, *, payload=None, headers=None, service="API", attempts=3):
         try:
             req = urllib.request.Request(url, data=encoded, headers=request_headers)
             with urllib.request.urlopen(req, timeout=25) as response:
-                result = json.load(response)
+                raw = response.read()
+                if response.headers.get("Content-Encoding") == "gzip":
+                    raw = gzip.decompress(raw)
+                result = json.loads(raw)
             if not isinstance(result, dict):
                 raise MonitorError(f"{service}: invalid response")
             return result
@@ -44,7 +48,8 @@ def request_json(url, *, payload=None, headers=None, service="API", attempts=3):
                 raise MonitorError(f"{service}: HTTP {exc.code}") from None
         except (OSError, ValueError) as exc:
             if attempt + 1 == attempts:
-                raise MonitorError(f"{service}: {type(exc).__name__}") from None
+                cause = getattr(exc, "reason", exc)
+                raise MonitorError(f"{service}: {type(exc).__name__}/{type(cause).__name__}") from None
         time.sleep(2 ** attempt)
     raise MonitorError(f"{service}: request failed")
 
