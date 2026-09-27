@@ -1,0 +1,43 @@
+name: Chess availability monitor
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Regular checks at :07 and :37, around the clock. All cron times are UTC.
+    - cron: '7,37 * * * *'
+    # Mon-Thu 14:00 Almaty -> 8h cutoff 06:00 local / 01:00 UTC.
+    - cron: '55 0 * * 1-4'
+    - cron: '0 1 * * 1-4'
+    # Tuesday 12:00 -> cutoff Tue 04:00 local / MONDAY 23:00 UTC.
+    - cron: '55 22 * * 1'
+    - cron: '0 23 * * 1'
+    # Tue/Fri 16:00 -> cutoff 08:00 local / 03:00 UTC.
+    - cron: '55 2 * * 2,5'
+    - cron: '0 3 * * 2,5'
+
+permissions:
+  contents: write
+  actions: write # Disable this workflow once the supplied timetable expires.
+
+concurrency:
+  group: chess-monitor
+  cancel-in-progress: false
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Validate tracker
+        run: python3 -m unittest discover -s tests -v
+      - name: Check Sport Hub and send Telegram notifications
+        env:
+          SPORT_USERNAME: ${{ secrets.SPORT_USERNAME }}
+          SPORT_PASSWORD: ${{ secrets.SPORT_PASSWORD }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 tracker.py

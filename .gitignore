@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+.env
+.env.*
+!.env.example
+state.json
+*.dpapi
+*.dpapi.xml
+work/
+.venv/
